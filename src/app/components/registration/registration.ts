@@ -1,40 +1,43 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { VotingService } from '../../services/voting';
 
 @Component({
   selector: 'app-registration',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule],
   template: `
     <div class="min-h-screen bg-gradient-to-br from-black to-gray-900 p-6">
       <!-- Loading -->
-      <div *ngIf="loading" class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50">
-        <div class="text-center">
-          <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto mb-4"></div>
-          <p class="text-white text-xl">Registering voter...</p>
-        </div>
-      </div>
-
-      <!-- Success Modal -->
-      <div *ngIf="showSuccess" class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50 p-4">
-        <div class="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-10 max-w-md border-2 border-green-600">
+      @if (loading()) {
+        <div class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50">
           <div class="text-center">
-            <div class="text-6xl mb-6 animate-bounce">✅</div>
-            <h3 class="text-3xl font-bold text-white mb-4">Registration Successful!</h3>
-            <div class="bg-white/10 rounded-xl p-6 mb-6">
-              <p class="text-sm text-gray-400 mb-2">Your Voter Code</p>
-              <p class="text-4xl font-mono font-bold text-green-400 tracking-wider">{{voterCode}}</p>
-            </div>
-            <p class="text-red-400 text-sm mb-6">⚠️ Write this down! You cannot recover it later.</p>
-            <button (click)="goToLogin()" class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-lg">
-              Continue to Login
-            </button>
+            <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p class="text-white text-xl">Registering voter...</p>
           </div>
         </div>
-      </div>
+      }
+
+      <!-- Success Modal -->
+      @if (showSuccess()) {
+        <div class="fixed inset-0 bg-black/90 backdrop-blur flex items-center justify-center z-50 p-4">
+          <div class="bg-gradient-to-br from-gray-900 to-black rounded-2xl p-10 max-w-md border-2 border-green-600">
+            <div class="text-center">
+              <div class="text-6xl mb-6 animate-bounce">✅</div>
+              <h3 class="text-3xl font-bold text-white mb-4">Registration Successful!</h3>
+              <div class="bg-white/10 rounded-xl p-6 mb-6">
+                <p class="text-sm text-gray-400 mb-2">Your Voter Code</p>
+                <p class="text-4xl font-mono font-bold text-green-400 tracking-wider">{{ voterCode() }}</p>
+              </div>
+              <p class="text-red-400 text-sm mb-6">⚠️ Write this down! You cannot recover it later.</p>
+              <button (click)="goToLogin()" class="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-lg">
+                Continue to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       <div class="max-w-3xl mx-auto">
         <button (click)="goBack()" class="mb-6 px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700">
@@ -42,109 +45,135 @@ import { VotingService } from '../../services/voting';
         </button>
 
         <h2 class="text-5xl font-bold text-white mb-8 text-center">Voter Registration</h2>
-        
+
         <div class="bg-gray-900 rounded-2xl p-10 border-2 border-white/20">
-          <div class="space-y-6">
+          <form [formGroup]="form" (ngSubmit)="register()" class="space-y-6">
             <!-- Full Name -->
             <div>
-              <label class="block text-white font-bold mb-2">Full Name</label>
-              <input 
-                [(ngModel)]="form.fullName" 
-                (input)="filterLetters()"
-                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' + 
-                         (errors.fullName ? 'border-red-500' : form.fullName ? 'border-green-500' : 'border-white/10')" 
+              <label for="fullName" class="block text-white font-bold mb-2">Full Name</label>
+              <input id="fullName"
+                formControlName="fullName"
+                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' +
+                         (form.controls.fullName.touched && form.controls.fullName.invalid ? 'border-red-500' : form.controls.fullName.valid && form.controls.fullName.value ? 'border-green-500' : 'border-white/10')"
                 placeholder="As per ID"/>
-              <p *ngIf="errors.fullName" class="text-red-400 text-sm mt-2">{{errors.fullName}}</p>
+              @if (form.controls.fullName.touched && form.controls.fullName.errors) {
+                <p class="text-red-400 text-sm mt-2">
+                  @if (form.controls.fullName.errors['required']) { Full name is required }
+                  @else if (form.controls.fullName.errors['pattern']) { Letters only }
+                </p>
+              }
             </div>
 
             <!-- ID Number -->
             <div>
-              <label class="block text-white font-bold mb-2">ID Number</label>
-              <input 
-                [(ngModel)]="form.idNumber" 
-                (input)="filterNumbers()"
-                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' + 
-                         (errors.idNumber ? 'border-red-500' : form.idNumber ? 'border-green-500' : 'border-white/10')" 
-                placeholder="12345678" 
-                maxlength="8"/>
-              <p *ngIf="errors.idNumber" class="text-red-400 text-sm mt-2">{{errors.idNumber}}</p>
+              <label for="idNumber" class="block text-white font-bold mb-2">ID Number</label>
+              <input id="idNumber"
+                formControlName="idNumber"
+                maxlength="8"
+                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' +
+                         (form.controls.idNumber.touched && form.controls.idNumber.invalid ? 'border-red-500' : form.controls.idNumber.valid && form.controls.idNumber.value ? 'border-green-500' : 'border-white/10')"
+                placeholder="12345678"/>
+              @if (form.controls.idNumber.touched && form.controls.idNumber.errors) {
+                <p class="text-red-400 text-sm mt-2">
+                  @if (form.controls.idNumber.errors['required']) { ID number is required }
+                  @else if (form.controls.idNumber.errors['pattern']) { Must be 7-8 digits }
+                </p>
+              }
             </div>
 
             <!-- Location Selects -->
             <div class="grid grid-cols-3 gap-4">
               <div>
-                <label class="block text-white font-bold mb-2">County</label>
-                <select 
-                  [(ngModel)]="form.county" 
-                  (change)="onCountyChange()" 
+                <label for="county" class="block text-white font-bold mb-2">County</label>
+                <select id="county"
+                  formControlName="county"
+                  (change)="onCountyChange()"
                   class="w-full px-5 py-4 bg-white/5 border-2 border-white/10 rounded-lg text-white">
                   <option value="" style="color:black">Select</option>
-                  <option *ngFor="let county of counties" [value]="county.id" style="color:black;">{{county.name}}</option>
+                  @for (county of counties; track county.id) {
+                    <option [value]="county.id" style="color:black">{{ county.name }}</option>
+                  }
                 </select>
-                <p *ngIf="errors.county" class="text-red-400 text-sm mt-2">{{errors.county}}</p>
+                @if (form.controls.county.touched && form.controls.county.errors) {
+                  <p class="text-red-400 text-sm mt-2">County is required</p>
+                }
               </div>
 
               <div>
-                <label class="block text-white font-bold mb-2">Constituency</label>
-                <select 
-                  [(ngModel)]="form.constituency" 
-                  (change)="onConstituencyChange()" 
-                  class="w-full px-5 py-4 bg-white/5 border-2 border-white/10 rounded-lg text-white" 
-                  [disabled]="!form.county">
+                <label for="constituency" class="block text-white font-bold mb-2">Constituency</label>
+                <select id="constituency"
+                  formControlName="constituency"
+                  (change)="onConstituencyChange()"
+                  class="w-full px-5 py-4 bg-white/5 border-2 border-white/10 rounded-lg text-white">
                   <option value="" style="color:black">Select</option>
-                  <option *ngFor="let const of filteredConstituencies()" [value]="const.id" style="color:black">{{const.name}}</option>
+                  @for (c of filteredConstituencies(); track c.id) {
+                    <option [value]="c.id" style="color:black">{{ c.name }}</option>
+                  }
                 </select>
-                <p *ngIf="errors.constituency" class="text-red-400 text-sm mt-2">{{errors.constituency}}</p>
+                @if (form.controls.constituency.touched && form.controls.constituency.errors) {
+                  <p class="text-red-400 text-sm mt-2">Constituency is required</p>
+                }
               </div>
 
               <div>
-                <label class="block text-white font-bold mb-2">Ward</label>
-                <select 
-                  [(ngModel)]="form.ward" 
-                  class="w-full px-5 py-4 bg-white/5 border-2 border-white/10 rounded-lg text-white" 
-                  [disabled]="!form.constituency">
+                <label for="ward" class="block text-white font-bold mb-2">Ward</label>
+                <select id="ward"
+                  formControlName="ward"
+                  class="w-full px-5 py-4 bg-white/5 border-2 border-white/10 rounded-lg text-white">
                   <option value="" style="color:black">Select</option>
-                  <option *ngFor="let ward of filteredWards()" [value]="ward.id" style="color:black">{{ward.name}}</option>
+                  @for (w of filteredWards(); track w.id) {
+                    <option [value]="w.id" style="color:black">{{ w.name }}</option>
+                  }
                 </select>
-                <p *ngIf="errors.ward" class="text-red-400 text-sm mt-2">{{errors.ward}}</p>
+                @if (form.controls.ward.touched && form.controls.ward.errors) {
+                  <p class="text-red-400 text-sm mt-2">Ward is required</p>
+                }
               </div>
             </div>
 
             <!-- Phone -->
             <div>
-              <label class="block text-white font-bold mb-2">Phone</label>
-              <input required=numbers
-                [(ngModel)]="form.phone" 
-                (input)="filterPhone()"
-                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' + 
-                         (errors.phone ? 'border-red-500' : 'border-white/10')" 
+              <label for="phone" class="block text-white font-bold mb-2">Phone</label>
+              <input id="phone"
+                formControlName="phone"
+                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' +
+                         (form.controls.phone.touched && form.controls.phone.invalid ? 'border-red-500' : 'border-white/10')"
                 placeholder="+254700000000"/>
-              <p *ngIf="errors.phone" class="text-red-400 text-sm mt-2">{{errors.phone}}</p>
+              @if (form.controls.phone.touched && form.controls.phone.errors) {
+                <p class="text-red-400 text-sm mt-2">
+                  @if (form.controls.phone.errors['required']) { Phone number is required }
+                  @else if (form.controls.phone.errors['pattern']) { Invalid format (e.g. +254712345678) }
+                </p>
+              }
             </div>
 
-            <button 
-              (click)="register()" 
-              class="w-full py-5 bg-gradient-to-r from-red-700 via-black to-green-700 text-white font-bold text-xl rounded-lg hover:opacity-90">
+            <button
+              type="submit"
+              [disabled]="form.invalid"
+              [class]="'w-full py-5 text-white font-bold text-xl rounded-lg ' +
+                       (form.invalid ? 'bg-gray-700 cursor-not-allowed' : 'bg-gradient-to-r from-red-700 via-black to-green-700 hover:opacity-90')">
               Register
             </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>
   `,
   styles: []
 })
-export class RegistrationComponent implements OnInit {
-  form = {
-    fullName: '',
-    idNumber: '',
-    phone: '+254',
-    county: '',
-    constituency: '',
-    ward: ''
-  };
+export class RegistrationComponent {
+  private votingService = inject(VotingService);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
 
-  errors: any = {};
+  form = this.fb.nonNullable.group({
+    fullName: ['', [Validators.required, Validators.pattern(/^[A-Za-z\s]+$/)]],
+    idNumber: ['', [Validators.required, Validators.pattern(/^\d{7,8}$/)]],
+    phone:    ['+254', [Validators.required, Validators.pattern(/^\+254\d{9}$/)]],
+    county:       ['', Validators.required],
+    constituency: ['', Validators.required],
+    ward:         ['', Validators.required]
+  });
   counties: any[]  = [
   { id: 1, name: 'Mombasa' },
   { id: 2, name: 'Kwale' },
@@ -2613,116 +2642,69 @@ filteredWards = signal<any>([]);
 
 
   ]);
-  loading = false;
-  voterCode = '';
-  showSuccess = false;
-
-  constructor(
-    private votingService: VotingService,
-    private router: Router
-  ) {}
-
-  ngOnInit() {
-    // this.loadCounties();
-  }
-
-  loadCounties() {
-    this.votingService.getCounties().subscribe({
-      next: (data) => this.counties = data,
-      error: (err) => console.error('Failed to load counties', err)
-    });
-  }
+  loading = signal(false);
+  voterCode = signal('');
+  showSuccess = signal(false);
 
   onCountyChange() {
-    // this.form.constituency = '';
-    // this.form.ward = '';
-    console.log(this.form.county)
-    if (this.form.county) {
-      // this.votingService.getConstituencies(+this.form.county).subscribe({
-      //   next: (data) => this.constituencies = data
-      // });
-      console.log(this.form.county)
-      const filteredConstituencies = this.constituencies().filter(constituency => constituency.countyId == this.form.county);
-    this.filteredConstituencies.set(filteredConstituencies);
+    this.form.controls.constituency.setValue('');
+    this.form.controls.ward.setValue('');
+    this.filteredWards.set([]);
+
+    const countyId = this.form.controls.county.value;
+    if (countyId) {
+      this.filteredConstituencies.set(
+        this.constituencies().filter(c => c.countyId == countyId)
+      );
+    } else {
+      this.filteredConstituencies.set([]);
     }
   }
 
   onConstituencyChange() {
-    this.form.ward = '';
-    // this.wards = [];
-    
-    if (this.form.constituency) {
-    //   this.votingService.getWards(+this.form.constituency).subscribe({
-    //     next: (data) => this.wards = data
-    //   });
-     const filteredWards = this.wards().filter((ward: { constituencyId: string; })=> ward.constituencyId == this.form.constituency);
-    this.filteredWards.set(filteredWards);
+    this.form.controls.ward.setValue('');
+
+    const constituencyId = this.form.controls.constituency.value;
+    if (constituencyId) {
+      this.filteredWards.set(
+        this.wards().filter((w: { constituencyId: string }) => w.constituencyId == constituencyId)
+      );
+    } else {
+      this.filteredWards.set([]);
     }
   }
 
-  filterLetters() {
-    this.form.fullName = this.form.fullName.replace(/[^A-Za-z\s]/g, '');
-    this.errors.fullName = '';
-  }
-
-  filterNumbers() {
-    this.form.idNumber = this.form.idNumber.replace(/\D/g, '').slice(0, 8);
-    this.errors.idNumber = '';
-  }
-
-  filterPhone() {
-    this.form.phone = '+254' + this.form.phone.slice(4).replace(/\D/g, '').slice(0, 9);
-    this.errors.phone = '';
-  }
-
-  validate(): boolean {
-    this.errors = {};
-    
-    if (!this.form.fullName.trim()) this.errors.fullName = 'Required';
-    else if (!/^[A-Za-z\s]+$/.test(this.form.fullName)) this.errors.fullName = 'Letters only';
-    
-    if (!this.form.idNumber.trim()) this.errors.idNumber = 'Required';
-    else if (!/^\d{7,8}$/.test(this.form.idNumber)) this.errors.idNumber = '7-8 digits';
-    
-    if (!this.form.county) this.errors.county = 'Required';
-    if (!this.form.constituency) this.errors.constituency = 'Required';
-    if (!this.form.ward) this.errors.ward = 'Required';
-    
-    if (this.form.phone === '+254') this.errors.phone = 'Required';
-    else if (!/^\+254\d{9}$/.test(this.form.phone)) this.errors.phone = 'Invalid format';
-    
-    return Object.keys(this.errors).length === 0;
-  }
-
   register() {
-    if (!this.validate()) return;
-    
-    this.loading = true;
-    
-    const data = {
-      full_name: this.form.fullName,
-      id_number: this.form.idNumber,
-      phone: this.form.phone,
-      county: +this.form.county,
-      constituency: +this.form.constituency,
-      ward: +this.form.ward
-    };
-    
-    // this.votingService.registerVoter(data).subscribe({
-    //   next: (response) => {
-    //     this.loading = false;
-    //     this.voterCode = response.voter_code;
-    //     this.showSuccess = true;
-    //     this.form = { fullName: '', idNumber: '', phone: '+254', county: '', constituency: '', ward: '' };
-    //   },
-    //   error: (err) => {
-    //     this.loading = false;
-    //     alert('Registration failed: ' + (err.error?.id_number?.[0] || 'Error occurred'));
-    //   }
-    // });
-    this.router.navigate(["/dashboard"]);
-  }
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
 
+    this.loading.set(true);
+
+    const v = this.form.getRawValue();
+    const data = {
+      full_name: v.fullName,
+      id_number: v.idNumber,
+      phone: v.phone,
+      county: +v.county,
+      constituency: +v.constituency,
+      ward: +v.ward
+    };
+
+    this.votingService.registerVoter(data).subscribe({
+      next: (response) => {
+        this.loading.set(false);
+        this.voterCode.set(response.voter_code);
+        this.showSuccess.set(true);
+        this.form.reset({ phone: '+254' });
+      },
+      error: (err) => {
+        this.loading.set(false);
+        alert('Registration failed: ' + (err.error?.id_number?.[0] || 'Error occurred'));
+      }
+    });
+  }
 
   goToLogin() {
     this.router.navigate(['/login']);
