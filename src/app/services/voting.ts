@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 // ── Shared interfaces ────────────────────────────────────────────────
@@ -46,10 +46,20 @@ export interface VoteResult {
   candidate_id: number;
   candidate_name: string;
   party: string | null;
+  photo_url: string | null;
   seat_id: number;
   seat_type: string;
   seat_name: string;
+  seat_level: string;
   vote_count: number;
+}
+
+/** Optional query-param filters accepted by GET /api/votes/results/. */
+export interface ResultFilters {
+  seat_type?: string;
+  county?: string;
+  constituency?: string;
+  ward?: string;
 }
 
 @Injectable({
@@ -92,9 +102,17 @@ export class VotingService {
     });
   }
 
-  /** Aggregated results for all seats. */
-  getResults(): Observable<VoteResult[]> {
-    return this.http.get<VoteResult[]>(`${this.apiUrl}/votes/results/`);
+  /** Aggregated results for all seats, with optional filters. */
+  getResults(filters?: ResultFilters): Observable<VoteResult[]> {
+    let params = new HttpParams();
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        if (value) {
+          params = params.set(key, value);
+        }
+      }
+    }
+    return this.http.get<VoteResult[]>(`${this.apiUrl}/votes/results/`, { params });
   }
 
   /** Seat IDs the current voter already voted on. */
