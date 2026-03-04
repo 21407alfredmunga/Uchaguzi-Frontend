@@ -147,6 +147,37 @@ import { VotingService } from '../../services/voting';
               }
             </div>
 
+            <!-- Email -->
+            <div>
+              <label for="email" class="block text-white font-bold mb-2">Email <span class="text-gray-500 font-normal">(optional)</span></label>
+              <input id="email"
+                formControlName="email"
+                type="email"
+                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' +
+                         (form.controls.email.touched && form.controls.email.invalid ? 'border-red-500' : 'border-white/10')"
+                placeholder="voter@example.com"/>
+              @if (form.controls.email.touched && form.controls.email.errors) {
+                <p class="text-red-400 text-sm mt-2">Enter a valid email address</p>
+              }
+            </div>
+
+            <!-- Password -->
+            <div>
+              <label for="password" class="block text-white font-bold mb-2">Password</label>
+              <input id="password"
+                formControlName="password"
+                type="password"
+                [class]="'w-full px-5 py-4 bg-white/5 border-2 rounded-lg text-white focus:outline-none ' +
+                         (form.controls.password.touched && form.controls.password.invalid ? 'border-red-500' : form.controls.password.valid && form.controls.password.value ? 'border-green-500' : 'border-white/10')"
+                placeholder="Min 6 characters"/>
+              @if (form.controls.password.touched && form.controls.password.errors) {
+                <p class="text-red-400 text-sm mt-2">
+                  @if (form.controls.password.errors['required']) { Password is required }
+                  @else if (form.controls.password.errors['minlength']) { Must be at least 6 characters }
+                </p>
+              }
+            </div>
+
             <button
               type="submit"
               [disabled]="form.invalid"
@@ -172,7 +203,9 @@ export class RegistrationComponent {
     phone:    ['+254', [Validators.required, Validators.pattern(/^\+254\d{9}$/)]],
     county:       ['', Validators.required],
     constituency: ['', Validators.required],
-    ward:         ['', Validators.required]
+    ward:         ['', Validators.required],
+    email:    [''],
+    password: ['', [Validators.required, Validators.minLength(6)]],
   });
   counties: any[]  = [
   { id: 1, name: 'Mombasa' },
@@ -2683,13 +2716,21 @@ filteredWards = signal<any>([]);
     this.loading.set(true);
 
     const v = this.form.getRawValue();
+
+    // Resolve names from the selected IDs.
+    const countyName = this.counties.find(c => String(c.id) === v.county)?.name ?? '';
+    const constituencyName = this.filteredConstituencies().find(c => String(c.id) === v.constituency)?.name ?? '';
+    const wardName = this.filteredWards().find(w => String(w.id) === v.ward)?.name ?? '';
+
     const data = {
       full_name: v.fullName,
       id_number: v.idNumber,
-      phone: v.phone,
-      county: +v.county,
-      constituency: +v.constituency,
-      ward: +v.ward
+      phone_number: v.phone,
+      email: v.email || undefined,
+      county: countyName,
+      constituency: constituencyName,
+      ward: wardName,
+      password: v.password,
     };
 
     this.votingService.registerVoter(data).subscribe({

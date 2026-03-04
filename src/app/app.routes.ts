@@ -4,7 +4,7 @@ import { RegistrationComponent } from './components/registration/registration';
 import { LoginComponent } from './components/login/login';
 import { DashboardComponent } from './components/dashboard/dashboard';
 import { ResultsComponent } from './components/results/results';
-import { AuthGuard } from './guards/auth-guard';
+import { authGuard } from './guards/auth-guard';
 
 export const routes: Routes = [
   { path: '', component: LandingComponent },
@@ -13,12 +13,12 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     component: DashboardComponent,
-    // canActivate: [AuthGuard]
+    canActivate: [authGuard],
   },
   {
     path: 'results',
     component: ResultsComponent,
-    // canActivate: [AuthGuard]
+    canActivate: [authGuard],
   },
-  { path: '**', redirectTo: '' }
+  { path: '**', redirectTo: '' },
 ];
