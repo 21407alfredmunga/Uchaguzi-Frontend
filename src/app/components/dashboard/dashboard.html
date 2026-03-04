@@ -1,1 +1,310 @@
-<p>dashboard works!</p>
+<div class="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-800">
+
+  <!-- ── Navigation ──────────────────────────────────────────────── -->
+  <nav class="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-40"
+       aria-label="Main navigation">
+    <div class="container mx-auto px-8 py-4">
+      <div class="flex justify-between items-center">
+        <div class="flex gap-4">
+          <button (click)="goTo('/dashboard')"
+                  class="px-8 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-black via-red-700 to-green-700 text-white shadow-lg border border-white/20"
+                  aria-current="page">
+            Dashboard
+          </button>
+          <button (click)="goTo('/results')"
+                  class="px-8 py-3 rounded-xl font-semibold transition-all bg-white/5 text-gray-300 hover:bg-white/10 border border-white/10">
+            Results
+          </button>
+        </div>
+        <button (click)="logout()"
+                class="px-8 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold rounded-xl shadow-lg">
+          Logout
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page body ───────────────────────────────────────────────── -->
+  <div class="min-h-screen p-8">
+    <div class="max-w-7xl mx-auto">
+
+      <!-- ── User info card ─────────────────────────────────────── -->
+      @if (voter(); as v) {
+        <div class="mb-8 bg-gradient-to-r from-black/60 via-red-900/20 to-green-900/20 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
+          <p class="text-sm text-gray-400 mb-1 uppercase tracking-wider">Welcome Back</p>
+          <h1 class="text-6xl font-bold bg-gradient-to-r from-red-600 via-black to-green-600 bg-clip-text text-transparent uppercase">
+            {{ v.full_name }}
+          </h1>
+          <div class="mt-4 space-y-2">
+            <p class="text-gray-300">
+              Voter Code: <span class="text-green-400 font-mono font-bold">{{ v.voter_code }}</span>
+            </p>
+            <p class="text-gray-300">
+              County: <span class="text-white font-semibold">{{ v.county }}</span>
+            </p>
+            <p class="text-gray-300">
+              Constituency: <span class="text-white font-semibold">{{ v.constituency }}</span>
+            </p>
+            <p class="text-gray-300">
+              Ward: <span class="text-white font-semibold">{{ v.ward }}</span>
+            </p>
+          </div>
+        </div>
+      }
+
+      <!-- ── Loading spinner ────────────────────────────────────── -->
+      @if (loading()) {
+        <div class="flex justify-center items-center py-20" role="status">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          <span class="sr-only">Loading seats…</span>
+        </div>
+      }
+
+      <!-- ── Error banner ───────────────────────────────────────── -->
+      @if (error(); as errMsg) {
+        <div class="mb-8 bg-red-900/30 border border-red-500/30 rounded-2xl p-6 text-center" role="alert">
+          <p class="text-red-400 mb-4">{{ errMsg }}</p>
+          <button (click)="loadSeats()"
+                  class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+            Retry
+          </button>
+        </div>
+      }
+
+      <!-- ── Main content (shown after loading) ─────────────────── -->
+      @if (!loading() && !error()) {
+
+        <!-- Stats row -->
+        <div class="grid lg:grid-cols-3 gap-6 mb-8">
+
+          <!-- Pie chart card -->
+          <div class="bg-black/60 backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <span aria-hidden="true">🎯</span> Voting Progress
+            </h2>
+            <div class="flex items-center justify-center">
+              <svg viewBox="0 0 200 200" class="w-48 h-48" role="img"
+                   aria-label="Voting progress pie chart">
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#1f2937" stroke-width="40"/>
+                <circle cx="100" cy="100" r="80" fill="none" stroke="#10b981" stroke-width="40"
+                        [attr.stroke-dasharray]="pieVoted() + ' ' + (pieTotal() - pieVoted())"
+                        transform="rotate(-90 100 100)" class="transition-all duration-500"/>
+                <text x="100" y="95" text-anchor="middle" class="text-3xl font-bold fill-white">
+                  {{ votingProgress() }}%
+                </text>
+                <text x="100" y="115" text-anchor="middle" class="text-xs fill-gray-400">
+                  Complete
+                </text>
+              </svg>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-6">
+              <div class="text-center">
+                <div class="text-2xl font-bold text-green-400">{{ votedCount() }}</div>
+                <div class="text-xs text-gray-400">Voted</div>
+              </div>
+              <div class="text-center">
+                <div class="text-2xl font-bold text-gray-400">{{ pendingCount() }}</div>
+                <div class="text-xs text-gray-400">Pending</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stat summary cards -->
+          <div class="lg:col-span-2 grid sm:grid-cols-3 gap-6">
+            <div class="bg-gradient-to-br from-green-600/20 to-green-800/20 backdrop-blur-sm rounded-2xl p-6 border border-green-500/30">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-green-400 text-sm uppercase tracking-wider">Seats Voted</span>
+                <span class="text-2xl" aria-hidden="true">✅</span>
+              </div>
+              <div class="text-4xl font-bold text-white">{{ votedCount() }}</div>
+              <div class="text-green-400 text-xs mt-2">of {{ totalSeats() }} seats</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-orange-600/20 to-orange-800/20 backdrop-blur-sm rounded-2xl p-6 border border-orange-500/30">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-orange-400 text-sm uppercase tracking-wider">Pending</span>
+                <span class="text-2xl" aria-hidden="true">⏳</span>
+              </div>
+              <div class="text-4xl font-bold text-white">{{ pendingCount() }}</div>
+              <div class="text-orange-400 text-xs mt-2">seats remaining</div>
+            </div>
+
+            <div class="bg-gradient-to-br from-blue-600/20 to-blue-800/20 backdrop-blur-sm rounded-2xl p-6 border border-blue-500/30">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-blue-400 text-sm uppercase tracking-wider">Progress</span>
+                <span class="text-2xl" aria-hidden="true">📊</span>
+              </div>
+              <div class="text-4xl font-bold text-white">{{ votingProgress() }}%</div>
+              <div class="text-blue-400 text-xs mt-2">completion</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Seat cards ───────────────────────────────────────── -->
+        <h2 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+          <span aria-hidden="true">🗳️</span> Your Voting Status
+        </h2>
+
+        @if (seats().length === 0) {
+          <div class="text-center py-12 text-gray-400">
+            <p class="text-xl">No seats available for your location.</p>
+          </div>
+        } @else {
+          <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @for (seat of seats(); track seat.id) {
+              <div [class]="seat.has_voted
+                     ? 'bg-gradient-to-br from-green-600/90 to-green-800/90 border-green-400/30'
+                     : 'bg-gradient-to-br from-gray-800/90 to-black/90 border-white/20'"
+                   class="rounded-3xl p-8 border-2 transition-all hover:scale-105 backdrop-blur-sm shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                  <span class="text-5xl" aria-hidden="true">{{ seatIcon(seat) }}</span>
+                  <span class="text-4xl" aria-hidden="true">{{ seat.has_voted ? '✅' : '⏳' }}</span>
+                </div>
+                <h3 class="text-2xl font-bold text-white mb-2">{{ seat.name }}</h3>
+                <p class="text-white/70 text-sm mb-4">{{ seat.level }} Level</p>
+
+                @if (!seat.has_voted) {
+                  <button (click)="openVoting(seat)"
+                          class="w-full py-3 bg-gradient-to-r from-red-700 via-black to-green-700 hover:from-red-600 hover:via-gray-900 hover:to-green-600 text-white font-bold rounded-lg shadow-xl transition-all border border-white/30">
+                    Vote Now
+                  </button>
+                } @else {
+                  <div class="text-green-200 text-sm font-bold flex items-center gap-2">
+                    <span class="text-xl" aria-hidden="true">✓</span> Voted Successfully
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- ── Candidate selection modal ───────────────────────────────── -->
+  @if (activeSeat(); as seat) {
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+         role="dialog" aria-modal="true"
+         [attr.aria-label]="'Select candidate for ' + seat.name">
+
+      <div class="bg-gray-900 rounded-3xl border border-white/20 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+
+        <!-- Header -->
+        <div class="sticky top-0 bg-gray-900 border-b border-white/10 p-6 rounded-t-3xl z-10">
+          <div class="flex justify-between items-center">
+            <div>
+              <h2 class="text-2xl font-bold text-white">{{ seat.name }}</h2>
+              <p class="text-gray-400 text-sm">Select your preferred candidate</p>
+            </div>
+            <button (click)="closeVoting()"
+                    class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                    aria-label="Close voting panel">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6">
+
+          <!-- Success / error message after casting -->
+          @if (voteMessage(); as msg) {
+            <div class="text-center py-8">
+              @if (voteError()) {
+                <span class="text-6xl mb-4 block" aria-hidden="true">❌</span>
+                <p class="text-red-400 text-xl font-bold mb-4">{{ msg }}</p>
+              } @else {
+                <span class="text-6xl mb-4 block" aria-hidden="true">✅</span>
+                <p class="text-green-400 text-xl font-bold mb-4">{{ msg }}</p>
+              }
+              <button (click)="closeVoting()"
+                      class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors">
+                Done
+              </button>
+            </div>
+          } @else {
+
+            <!-- Loading candidates spinner -->
+            @if (loadingCandidates()) {
+              <div class="flex justify-center py-12" role="status">
+                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-green-500"></div>
+                <span class="sr-only">Loading candidates…</span>
+              </div>
+            } @else if (candidates().length === 0) {
+              <div class="text-center py-12 text-gray-400">
+                <p>No candidates registered for this seat yet.</p>
+              </div>
+            } @else {
+
+              <!-- Candidate list -->
+              <div class="space-y-4 mb-6" role="radiogroup" aria-label="Candidate selection">
+                @for (candidate of candidates(); track candidate.id) {
+                  <button (click)="selectCandidate(candidate)"
+                          [class]="selectedCandidate()?.id === candidate.id
+                            ? 'border-green-500 bg-green-900/30'
+                            : 'border-white/10 bg-white/5 hover:bg-white/10'"
+                          class="w-full text-left p-4 rounded-2xl border-2 transition-all"
+                          role="radio"
+                          [attr.aria-checked]="selectedCandidate()?.id === candidate.id">
+                    <div class="flex items-center gap-4">
+
+                      @if (candidate.photo_url) {
+                        <img [src]="candidate.photo_url"
+                             [alt]="candidate.full_name"
+                             class="w-16 h-16 rounded-full object-cover border-2 border-white/20" />
+                      } @else {
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center text-2xl text-white border-2 border-white/20"
+                             aria-hidden="true">
+                          {{ candidate.full_name.charAt(0) }}
+                        </div>
+                      }
+
+                      <div class="flex-1">
+                        <h4 class="text-lg font-bold text-white">{{ candidate.full_name }}</h4>
+                        @if (candidate.party) {
+                          <p class="text-sm text-gray-400">{{ candidate.party }}</p>
+                        }
+                        @if (candidate.manifesto) {
+                          <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ candidate.manifesto }}</p>
+                        }
+                      </div>
+
+                      @if (selectedCandidate()?.id === candidate.id) {
+                        <span class="text-green-400 text-2xl" aria-hidden="true">✓</span>
+                      }
+                    </div>
+                  </button>
+                }
+              </div>
+
+              <!-- Confirm vote -->
+              @if (selectedCandidate(); as chosen) {
+                <div class="border-t border-white/10 pt-6">
+                  <p class="text-gray-400 text-sm mb-4 text-center">
+                    You are voting for
+                    <span class="text-white font-bold">{{ chosen.full_name }}</span>
+                    @if (chosen.party) {
+                      <span> ({{ chosen.party }})</span>
+                    }
+                  </p>
+                  <button (click)="confirmVote()"
+                          [disabled]="submitting()"
+                          [class]="submitting()
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:from-red-600 hover:via-gray-900 hover:to-green-600'"
+                          class="w-full py-4 bg-gradient-to-r from-red-700 via-black to-green-700 text-white font-bold rounded-xl shadow-xl transition-all border border-white/30 text-lg">
+                    @if (submitting()) {
+                      Submitting…
+                    } @else {
+                      Confirm Vote
+                    }
+                  </button>
+                </div>
+              }
+            }
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

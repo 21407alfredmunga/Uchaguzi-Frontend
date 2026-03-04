@@ -2,6 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+// ── Shared interfaces ────────────────────────────────────────────────
+
 export interface RegisterPayload {
   full_name: string;
   id_number: string;
@@ -18,6 +20,38 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface Seat {
+  id: number;
+  seat_type: string;
+  name: string;
+  level: string;
+  icon: string | null;
+  county: string | null;
+  constituency: string | null;
+  ward: string | null;
+  has_voted: boolean;
+}
+
+export interface Candidate {
+  id: number;
+  seat: number;
+  seat_type: string;
+  full_name: string;
+  party: string | null;
+  photo_url: string | null;
+  manifesto: string | null;
+}
+
+export interface VoteResult {
+  candidate_id: number;
+  candidate_name: string;
+  party: string | null;
+  seat_id: number;
+  seat_type: string;
+  seat_name: string;
+  vote_count: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -25,52 +59,46 @@ export class VotingService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = 'http://127.0.0.1:8000/api';
 
-  // ── Auth endpoints ─────────────────────────────────────────────────
+  // ── Auth endpoints (public) ────────────────────────────────────────
 
-  registerVoter(data: RegisterPayload): Observable<unknown> {
-    return this.http.post(`${this.apiUrl}/register/`, data);
+  registerVoter(data: RegisterPayload): Observable<{ message: string; voter_code: string }> {
+    return this.http.post<{ message: string; voter_code: string }>(
+      `${this.apiUrl}/register/`,
+      data,
+    );
   }
 
   loginVoter(credentials: LoginCredentials): Observable<unknown> {
     return this.http.post(`${this.apiUrl}/voters/login/`, credentials);
   }
 
-  // ── Location endpoints ─────────────────────────────────────────────
+  // ── Electoral data (authenticated) ─────────────────────────────────
 
-  getCounties(): Observable<unknown> {
-    return this.http.get(`${this.apiUrl}/counties/`);
+  /** Seats the logged-in voter is eligible for, with `has_voted` flag. */
+  getSeats(): Observable<Seat[]> {
+    return this.http.get<Seat[]>(`${this.apiUrl}/seats/`);
   }
 
-  getConstituencies(countyId: number): Observable<unknown> {
-    return this.http.get(`${this.apiUrl}/constituencies/?county=${countyId}`);
+  /** Candidates running for a specific seat. */
+  getCandidates(seatId: number): Observable<Candidate[]> {
+    return this.http.get<Candidate[]>(`${this.apiUrl}/seats/${seatId}/candidates/`);
   }
 
-  getWards(constituencyId: number): Observable<unknown> {
-    return this.http.get(`${this.apiUrl}/wards/?constituency=${constituencyId}`);
-  }
-
-  // ── Voting endpoints ───────────────────────────────────────────────
-
-  getSeats(): Observable<unknown> {
-    return this.http.get(`${this.apiUrl}/seats/`);
-  }
-
-  getCandidates(seatType?: string): Observable<unknown> {
-    const url = seatType
-      ? `${this.apiUrl}/candidates/?seat_type=${seatType}`
-      : `${this.apiUrl}/candidates/`;
-    return this.http.get(url);
-  }
-
-  submitVote(voterId: number, seatId: number, candidateId: number): Observable<unknown> {
-    return this.http.post(`${this.apiUrl}/votes/`, {
-      voter: voterId,
+  /** Cast a vote. */
+  submitVote(seatId: number, candidateId: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/votes/`, {
       seat: seatId,
       candidate: candidateId,
     });
   }
 
-  getResults(): Observable<unknown> {
-    return this.http.get(`${this.apiUrl}/votes/results/`);
+  /** Aggregated results for all seats. */
+  getResults(): Observable<VoteResult[]> {
+    return this.http.get<VoteResult[]>(`${this.apiUrl}/votes/results/`);
+  }
+
+  /** Seat IDs the current voter already voted on. */
+  getMyVotes(): Observable<number[]> {
+    return this.http.get<number[]>(`${this.apiUrl}/votes/mine/`);
   }
 }
